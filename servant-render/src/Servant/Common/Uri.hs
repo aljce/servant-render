@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Servant.Common.Uri where
 
@@ -11,6 +12,8 @@ import qualified Data.List as L
 
 import Control.Applicative ((<|>),optional)
 import Data.Attoparsec.Text (Parser,(<?>),takeTill,char,takeText,decimal,sepBy)
+
+import Reflex.Class (Reflex(..),MonadHold(..))
 
 data Scheme = Http | Https deriving (Show,Eq,Ord)
 
@@ -76,3 +79,14 @@ parseUri = Uri
           QueryPieceParam <$> takeTill (=='=') <*> (char '=' *> takeTill (=='&')) <|>
           QueryPieceFlag  <$> takeTill (=='&')
 
+encodeUrl :: Authority -> Uri -> T.Text
+encodeUrl authority uri = LT.toStrict . LT.toLazyText $ encodeAuthority authority <> encodeUri uri
+
+#if ghcjs_HOST_OS
+url :: (MonadHold t m) => Dynamic t Authority -> m (Dynamic t Uri)
+url = undefined
+#else
+url :: (Reflex t, Monad m) => Dynamic t Authority -> m (Dynamic t Uri)
+url = return . fmap useAuthorityPath
+  where useAuthorityPath (Authority _ _ _ path) = Uri (filter (not . T.null) (T.splitOn "/" path)) []
+#endif
