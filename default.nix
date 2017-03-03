@@ -20,6 +20,10 @@ in {
         servant-render = build ./servant-render;
         servant-render-client = build ./servant-render-client;
         servant-render-server = build ./servant-render-server;
+
+        common = build ./example/common;
+        frontend = build ./example/frontend;
+        backend = build ./example/backend;
       };
   };
 }

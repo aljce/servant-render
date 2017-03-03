@@ -72,7 +72,8 @@ performRequest :: forall t m. (SupportsServantRender t m) =>
   Req t -> Dynamic t Authority -> Event t () -> m (Event t (Either T.Text (Uri,XhrResponse)))
 performRequest req authority trigger =
   fmap getCompose <$> performRequestsAsync (Compose <$> tagPromptlyDyn (liftAA2 (,) uri reqs) trigger)
-  where reqs :: Dynamic t (Either T.Text (XhrRequest T.Text))
+  where liftAA2 = liftA2 . liftA2
+        reqs :: Dynamic t (Either T.Text (XhrRequest T.Text))
         reqs = liftAA2 (XhrRequest (reqMethod req))
                        (liftA2 (\a -> fmap (encodeUrl a)) authority uri)
                        config
@@ -109,7 +110,6 @@ performRequest req authority trigger =
         bodyD = case reqBody req of
           Just body -> (fmap . fmap . fmap) Just body
           Nothing -> pure (Right ("", Nothing))
-        liftAA2 = liftA2 . liftA2
 
 performRequestCT :: (MimeUnrender c a, SupportsServantRender t m) =>
   Proxy c -> Req t -> Dynamic t Authority -> Event t () -> m (Event t (Either T.Text (Uri,a)))

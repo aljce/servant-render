@@ -1,3 +1,4 @@
+{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Servant.Render.Client where
@@ -8,6 +9,7 @@ import Reflex.Dom (dyn,DomBuilder,PostBuild)
 import Control.Monad.Fix (MonadFix)
 import Servant.Common.Uri (Authority(..),Uri(..))
 import Servant.Common.Req (Req,defReq)
+import Servant.Common.PopState (url)
 import Servant.Render (HasRender(..),Link,linkView,Render(..),Env(..),ServantErr,SupportsServantRender)
 
 serve :: forall api t m.
@@ -16,12 +18,14 @@ serve :: forall api t m.
   Proxy api ->
   Dynamic t Authority ->
   (Links api t m -> Widgets api t m) ->
+  Uri ->
   (Links api t m -> ServantErr -> Link t m) ->
-  m (Event t ())
-serve api authority makeWidgets makeErrorPage = do
-  let (Render widgets makeLinks) = render api (Env authority errorPage) (makeWidgets links) :: Render api t m
+  m (Event t Uri)
+serve api authority makeWidgets errorPageLoc makeErrorPage = do
+  let (Render widgets makeLinks) =
+        render api (Env authority errorPage errorPageLoc) (makeWidgets links) :: Render api t m
       links     = makeLinks defReq
       errorPage = makeErrorPage links
-  uri <- popState
-  updates <- dyn (fmap (linkView . either errorPage id . widgets) uri)
-  return (coincidence updates)
+  rec uri <- url authority updates
+      updates <- coincidence <$> dyn (fmap (linkView . either errorPage id . widgets) uri)
+  return updates

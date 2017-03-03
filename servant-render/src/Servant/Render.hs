@@ -1,20 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Servant.Render (
+  HTML,
   ServantErr(..),
   Link(..),
   linkView,
   Env(..),
+  Authority(..),
+  Uri(..),
   Render(..),
   HasRender(..),
   SupportsServantRender )where
@@ -33,6 +38,20 @@ import Servant.API ((:<|>)(..),(:>),Capture,Verb,ReflectMethod(..),MimeUnrender(
 import Servant.Common.Uri (Authority(..),Uri(..),unconsPathPiece)
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
                            performOneRequest,prependPathPiece)
+
+-- TODO: Kill me?
+import qualified Data.ByteString.Lazy as LB
+import Data.FileEmbed (embedFile)
+import qualified Network.HTTP.Media as M
+import Servant.API (Accept(..),MimeRender(..))
+
+data HTML
+
+instance Accept HTML where
+  contentType _ = "text" M.// "html" M./: ("charset", "utf-8")
+
+instance MimeRender HTML a where
+  mimeRender _ _ = LB.fromStrict $(embedFile "src/Servant/ghcjs.html")
 
 data ServantErr = NotFound T.Text | AjaxFailure T.Text
 
