@@ -21,11 +21,12 @@ url :: (MonadHold t m, PerformEvent t m, MonadIO (Performable m)) =>
   Dynamic t Authority -> Event t Uri -> m (Dynamic t Uri)
 url authority us = do
   u0 <- pure (Uri [] [])
-  _ <- performEvent $ ffor (attachPromptlyDyn authority us) $ \(authority,uri) -> liftJSM $ do
-    f <- eval ("(function (url) { window[\"history\"][\"pushState\"](0,\"\",url) })" :: T.Text)
-    url <- toJSVal (encodeUrl authority uri)
-    _ <- call f f [url]
-    return ()
+  _ <- performEvent $ ffor (attachPromptlyDyn authority us) $ \(authority,uri) -> do
+    liftJSM $ do
+      f <- eval ("(function (url) { window[\"history\"][\"pushState\"](0,\"\",url) })" :: T.Text)
+      url <- toJSVal (encodeUrl authority uri)
+      _ <- call f f [url]
+      return ()
   ps <- attachPromptlyDynWithMaybe (\a1 (a2,uri) -> if a1 == a2 then Just uri else Nothing) authority <$> getPopState
   holdDyn u0 (leftmost [us,ps])
 #else

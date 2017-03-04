@@ -8,6 +8,7 @@ import qualified Data.Text.Lazy.Builder as LT
 import qualified Data.Text.Lazy.Builder.Int as LT
 import Data.Monoid ((<>))
 import qualified Data.List as L
+import Data.Bool (bool)
 
 import Control.Applicative ((<|>),optional)
 import Data.Attoparsec.Text (Parser,(<?>),takeTill,char,takeText,decimal,sepBy)
@@ -34,7 +35,7 @@ data Authority = Authority
 
 encodeAuthority :: Authority -> LT.Builder
 encodeAuthority (Authority s h mp path) =
-  encodeScheme s <> "://" <> LT.fromText h <> maybe "" (\p -> ":" <> LT.decimal p) mp <> "/" <> LT.fromText path
+  encodeScheme s <> "://" <> LT.fromText h <> maybe "" (\p -> ":" <> LT.fromString (show p)) mp <> "/" <> LT.fromText path
 
 encodeAuthority' :: Authority -> T.Text
 encodeAuthority' = LT.toStrict . LT.toLazyText . encodeAuthority
@@ -67,8 +68,8 @@ unconsQuery (Uri pathPieces querys) = case querys of
 
 encodeUri :: Uri -> LT.Builder
 encodeUri (Uri pathPieces querys) =
-  mconcat (L.intersperse "/" (fmap LT.fromText pathPieces)) <> LT.singleton '?' <>
-  mconcat (L.intersperse "&" (fmap encodeQuery querys))
+  mconcat (L.intersperse "/" (fmap LT.fromText pathPieces)) <>
+  bool (LT.singleton '?' <> mconcat (L.intersperse "&" (fmap encodeQuery querys))) "" (L.null querys)
   where encodeQuery (QueryPieceParam x y) = LT.fromText x <> LT.singleton '=' <> LT.fromText y
         encodeQuery (QueryPieceFlag  x)   = LT.fromText x
 

@@ -21,5 +21,5 @@ main = do
           case find (\i -> itemId i == iid) items of
             Just item -> return item
             Nothing   -> throwError err404
-        static = serveDirectory "../../../frontend/dist/build/frontend/frontend.jsexe"
+        static = serveDirectory "../frontend/dist/build/frontend/frontend.jsexe"
 

@@ -23,6 +23,9 @@ import Reflex.Dom
 import Servant.API (MimeUnrender(..),BasicAuthData(..))
 import Servant.Common.Uri (Authority(..),Uri(..),QueryPiece(..),encodeAuthority,encodeUrl)
 
+--TODO: Kill Me
+import Debug.Trace
+
 note :: e -> Maybe a -> Either e a
 note err Nothing = Left err
 note _  (Just x) = Right x
@@ -36,7 +39,7 @@ performOneRequest :: (MimeUnrender c a, SupportsServantRender t m) =>
   Proxy c -> Authority -> Uri -> m (Either T.Text a)
 performOneRequest ct authority uri = do
   var <- liftIO newEmptyMVar
-  _ <- newXMLHttpRequest (xhrRequest "GET" (encodeUrl authority uri) headers) (liftIO . putMVar var)
+  _ <- newXMLHttpRequest (xhrRequest "GET" (traceShowId (encodeUrl authority uri)) headers) (liftIO . putMVar var)
   liftIO (decodeXhrRes ct <$> takeMVar var)
   where headers = def { _xhrRequestConfig_headers = "Accept" =: "application/json" }
 

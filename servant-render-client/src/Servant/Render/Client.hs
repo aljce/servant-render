@@ -4,7 +4,7 @@
 module Servant.Render.Client where
 
 import Data.Proxy (Proxy)
-import Reflex.Class (Reflex(..),MonadHold)
+import Reflex.Class (Reflex(..),MonadHold(..))
 import Reflex.Dom (dyn,DomBuilder,PostBuild)
 import Control.Monad.Fix (MonadFix)
 import Servant.Common.Uri (Authority(..),Uri(..))
@@ -26,6 +26,7 @@ serve api authority makeWidgets errorPageLoc makeErrorPage = do
         render api (Env authority errorPage errorPageLoc) (makeWidgets links) :: Render api t m
       links     = makeLinks defReq
       errorPage = makeErrorPage links
-  rec uri <- url authority updates
-      updates <- coincidence <$> dyn (fmap (linkView . either errorPage id . widgets) uri)
-  return updates
+  rec urls       <- url authority newUrls
+      changePage <- dyn (fmap (linkView . either errorPage id . widgets) urls)
+      newUrls    <- fmap switch (hold never changePage)
+  return newUrls

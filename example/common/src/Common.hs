@@ -16,6 +16,7 @@ import Servant.Render (HasRender(..),Link(..),ServantErr(..),HTML)
 import Reflex.Dom hiding (Link)
 import qualified Data.Text as T
 import Text.Read (readMaybe)
+import Data.Monoid ((<>))
 
 data Item = Item {
   itemId    :: Int,
@@ -24,13 +25,17 @@ data Item = Item {
 
 type API = "item" :> "all" :> Get '[JSON] [Item]
       :<|> "item" :> "one" :> Capture "itemId" Int :> Get '[JSON] Item
-      :<|> Get '[HTML,JSON] ()
+      :<|> Get '[JSON,HTML] ()
 
 api :: Proxy API
 api = Proxy
 
 item :: MonadWidget t m => Item -> m ()
-item (Item i name p) = text "Item"
+item (Item i name p) = do
+  el "div" $ do
+    el "div" $ text $ "Item: "  <> T.pack name
+    el "div" $ text $ "Id: "    <> T.pack (show i)
+    el "div" $ text $ "Price: " <> T.pack (show p)
 
 widgets :: (MonadWidget t m) => Links API t m -> Widgets API t m
 widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
@@ -53,9 +58,12 @@ widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
 
 
 errorPage :: (Monad m, DomBuilder t m) => Links API t m -> ServantErr -> Link t m
-errorPage (_ :<|> _ :<|> jumpHome) _ = Link $ do
+errorPage (_ :<|> _ :<|> jumpHome) err = Link $ do
+  el "div" $ text $ "Something went wrong : " <> displayErr err
   b <- button "Jump home!"
   unLink (jumpHome b)
+  where displayErr (NotFound err) = "Not Found: " <> err
+        displayErr (AjaxFailure err) = "Ajax failure: " <> err
 
 errorPageLoc :: Uri
 errorPageLoc = Uri ["error"] []
