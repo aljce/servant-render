@@ -15,6 +15,7 @@ executable backend
   build-depends:       base >=4.9 && <4.10
                      , common
                      , warp
+                     , wai-cors
                      , servant-server
                      , servant-render
                      , servant-render-server
