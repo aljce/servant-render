@@ -14,6 +14,7 @@ executable backend
   main-is:             Main.hs
   build-depends:       base >=4.9 && <4.10
                      , common
+                     , directory
                      , warp
                      , wai-cors
                      , servant-server

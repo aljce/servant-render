@@ -37,7 +37,7 @@ item (Item i name p) = do
     el "div" $ text $ "Id: "    <> T.pack (show i)
     el "div" $ text $ "Price: " <> T.pack (show p)
 
-widgets :: (MonadWidget t m, MonadIO m) => Links (API s) t m -> Widgets (API s) t m
+widgets :: MonadWidget t m => Links (API s) t m -> Widgets (API s) t m
 widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
   displayAll jumpOne jumpHome :<|> displayOne jumpAll jumpHome :<|> displayHome jumpAll jumpOne
   where displayAll jumpOne jumpHome items = Link $ do
@@ -55,7 +55,6 @@ widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
         displayHome jumpAll jumpOne () = Link $ do
           a <- button "Jump All!"
           unLink (jumpAll a)
-
 
 errorPage :: (Monad m, DomBuilder t m) => Links (API s) t m -> ServantErr -> Link t m
 errorPage (_ :<|> _ :<|> jumpHome) err = Link $ do

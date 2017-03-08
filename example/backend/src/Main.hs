@@ -10,22 +10,23 @@ import Common
 import Data.List (find)
 import Control.Concurrent.MVar
 import Control.Monad.IO.Class
+import System.Directory
 import Servant
 import Network.Wai.Handler.Warp (run)
-
---TODO: Kill me
+--If you want to build the example with ghc
 import Network.Wai.Middleware.Cors (simpleCors)
 
 main :: IO ()
 main = do
+  curDir <- getCurrentDirectory
+  www <- canonicalizePath (curDir ++ "/../frontend/result/bin/frontend.jsexe")
   var <- newMVar [Item 0 "Apple" 3, Item 1 "Orange" 2, Item 2 "Banana" 9]
-  run 8080 (simpleCors (serve (Proxy @(API "" :<|> Raw)) ((getAllItems var :<|> getOneItem var :<|> return ()) :<|> files)))
-  where getAllItems = liftIO . readMVar
+  run 8080 (simpleCors (serve (Proxy @(API "" :<|> Raw)) (routes var :<|> serveDirectory www)))
+  where routes var = getAllItems var :<|> getOneItem var :<|> return ()
+        getAllItems = liftIO . readMVar
         getOneItem var iid = do
           items <- liftIO (readMVar var)
           case find (\i -> itemId i == iid) items of
             Just item -> return item
             Nothing   -> throwError err404
-        files = serveDirectory staticDir
-        staticDir = "/home/kyle/repos/servant-render/example/frontend/dist/build/frontend/frontend.jsexe"
 

@@ -19,10 +19,6 @@ import JSDOM.EventM (on)
 import JSDOM.Generated.Window (popState,getLocation)
 import JSDOM.Generated.Location (toString)
 
---TODO: kill me
-import Servant.Common.Uri (encodeUri)
-import Reflex (traceEventWith)
-
 getPopState :: (Reflex t, TriggerEvent t m, MonadJSM m) => m (Event t (Authority, Uri))
 getPopState = do
   window <- currentWindowUnchecked
@@ -48,4 +44,4 @@ url authority us = do
     _ <- call f f [url]
     return ()
   ps <- getPopState
-  holdDyn u0 (traceEventWith (show . encodeUri) (fmap snd ps))
+  holdDyn u0 (fmap snd ps)

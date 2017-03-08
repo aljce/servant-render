@@ -23,9 +23,6 @@ import Reflex.Dom
 import Servant.API (MimeUnrender(..),BasicAuthData(..))
 import Servant.Common.Uri (Authority(..),Uri(..),QueryPiece(..),encodeAuthority,encodeUrl)
 
---TODO: Kill Me
-import Debug.Trace
-
 note :: e -> Maybe a -> Either e a
 note err Nothing = Left err
 note _  (Just x) = Right x
@@ -38,7 +35,6 @@ decodeXhrRes ct xhrRes =
 performOneRequest :: (MimeUnrender c a, SupportsServantRender t m) =>
   Proxy c -> Authority -> Uri -> m (Either T.Text a)
 performOneRequest ct authority uri = do
-  liftIO $ putStrLn "perform req one"
   var <- liftIO newEmptyMVar
   _ <- newXMLHttpRequest (xhrRequest "GET" (encodeUrl authority uri) headers) (liftIO . putMVar var)
   liftIO (decodeXhrRes ct <$> takeMVar var)
@@ -77,8 +73,7 @@ type SupportsServantRender t m =
 
 performRequest :: forall t m. (SupportsServantRender t m) =>
   Req t -> Dynamic t Authority -> Event t () -> m (Event t (Either T.Text (Uri,XhrResponse)))
-performRequest req authority trigger = do
-  liftIO $ putStrLn "perform req dynamic"
+performRequest req authority trigger =
   fmap getCompose <$> performRequestsAsync (Compose <$> tagPromptlyDyn (liftAA2 (,) uri reqs) trigger)
   where liftAA2 = liftA2 . liftA2
         reqs :: Dynamic t (Either T.Text (XhrRequest T.Text))
