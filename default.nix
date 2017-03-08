@@ -6,7 +6,7 @@ let bootstrap = import <nixpkgs> {};
       inherit (reflex-platform-commit) rev sha256;
     };
 in
-{ compiler ? "ghcjs", test ? "true", reflex-platform ? (import reflex-platform-src { enableLibraryProfiling = true; }) }:
+{ compiler ? "ghcjs", test ? "true", reflex-platform ? (import reflex-platform-src {}) }:
 let parseBool = str: with builtins;
       let json = fromJSON str; in if isBool json then json else throw "parseBool: ${str} is not a bool";
 in {
@@ -22,8 +22,8 @@ in {
         servant-render-server = build ./servant-render-server;
 
         common = build ./example/common;
-        # frontend = build ./example/frontend;
-        frontend = testFun (callPackage ./example/frontend/cabal.nix {});
+        frontend = build ./example/frontend;
+        # frontend = testFun (callPackage ./example/frontend/cabal.nix {});
         backend = build ./example/backend;
       };
   };

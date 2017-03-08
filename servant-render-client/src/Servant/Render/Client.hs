@@ -24,9 +24,10 @@ serve :: forall api t m.
 serve api authority makeWidgets errorPageLoc makeErrorPage = do
   let (Render widgets makeLinks) =
         render api (Env authority errorPage errorPageLoc) (makeWidgets links) :: Render api t m
-      links     = makeLinks defReq
-      errorPage = makeErrorPage links
+      links      = makeLinks defReq
+      errorPage  = makeErrorPage links
+      double f x = f x x
   rec urls       <- url authority newUrls
-      changePage <- dyn (fmap (linkView . either errorPage id . widgets) urls)
+      changePage <- dyn (fmap (linkView . either errorPage id . double widgets) urls)
       newUrls    <- fmap switch (hold never changePage)
   return newUrls

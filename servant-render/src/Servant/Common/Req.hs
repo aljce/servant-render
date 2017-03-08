@@ -38,8 +38,9 @@ decodeXhrRes ct xhrRes =
 performOneRequest :: (MimeUnrender c a, SupportsServantRender t m) =>
   Proxy c -> Authority -> Uri -> m (Either T.Text a)
 performOneRequest ct authority uri = do
+  liftIO $ putStrLn "perform req one"
   var <- liftIO newEmptyMVar
-  _ <- newXMLHttpRequest (xhrRequest "GET" (traceShowId (encodeUrl authority uri)) headers) (liftIO . putMVar var)
+  _ <- newXMLHttpRequest (xhrRequest "GET" (encodeUrl authority uri) headers) (liftIO . putMVar var)
   liftIO (decodeXhrRes ct <$> takeMVar var)
   where headers = def { _xhrRequestConfig_headers = "Accept" =: "application/json" }
 
@@ -67,13 +68,17 @@ prependQueryParam :: Dynamic t (Either T.Text QueryPiece) -> Req t -> Req t
 prependQueryParam q req =
   req { reqQueryParams = q : reqQueryParams req }
 
+prependHeader :: T.Text -> Dynamic t (Either T.Text T.Text) -> Req t -> Req t
+prependHeader name referer req = req { reqHeaders = (name,referer) : reqHeaders req }
+
 type SupportsServantRender t m =
   (Reflex t,MonadIO m,MonadJSM m,HasJSContext m,MonadIO (Performable m),MonadJSM (Performable m)
   ,HasJSContext (Performable m),MonadSample t m,TriggerEvent t m,PerformEvent t m)
 
 performRequest :: forall t m. (SupportsServantRender t m) =>
   Req t -> Dynamic t Authority -> Event t () -> m (Event t (Either T.Text (Uri,XhrResponse)))
-performRequest req authority trigger =
+performRequest req authority trigger = do
+  liftIO $ putStrLn "perform req dynamic"
   fmap getCompose <$> performRequestsAsync (Compose <$> tagPromptlyDyn (liftAA2 (,) uri reqs) trigger)
   where liftAA2 = liftA2 . liftA2
         reqs :: Dynamic t (Either T.Text (XhrRequest T.Text))

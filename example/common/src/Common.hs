@@ -12,7 +12,7 @@ import GHC.Generics
 import Data.Aeson (FromJSON,ToJSON)
 import Servant.API
 import Servant.Common.Uri (Uri(..))
-import Servant.Render (HasRender(..),Link(..),ServantErr(..),HTML)
+import Servant.Render (HasRender(..),Link(..),ServantErr(..),RunTime)
 import Reflex.Dom hiding (Link)
 import qualified Data.Text as T
 import Text.Read (readMaybe)
@@ -23,11 +23,11 @@ data Item = Item {
   itemName  :: String,
   itemPrice :: Double } deriving (Show,Generic,FromJSON,ToJSON)
 
-type API = "item" :> "all" :> Get '[JSON] [Item]
-      :<|> "item" :> "one" :> Capture "itemId" Int :> Get '[JSON] Item
-      :<|> Get '[JSON,HTML] ()
+type API s = "item" :> "all" :> Get '[JSON,RunTime s] [Item]
+        :<|> "item" :> "one" :> Capture "itemId" Int :> Get '[JSON,RunTime s] Item
+        :<|> Get '[JSON,RunTime s] ()
 
-api :: Proxy API
+api :: Proxy (API s)
 api = Proxy
 
 item :: MonadWidget t m => Item -> m ()
@@ -37,7 +37,7 @@ item (Item i name p) = do
     el "div" $ text $ "Id: "    <> T.pack (show i)
     el "div" $ text $ "Price: " <> T.pack (show p)
 
-widgets :: (MonadWidget t m) => Links API t m -> Widgets API t m
+widgets :: (MonadWidget t m, MonadIO m) => Links (API s) t m -> Widgets (API s) t m
 widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
   displayAll jumpOne jumpHome :<|> displayOne jumpAll jumpHome :<|> displayHome jumpAll jumpOne
   where displayAll jumpOne jumpHome items = Link $ do
@@ -57,7 +57,7 @@ widgets (jumpAll :<|> jumpOne :<|> jumpHome) =
           unLink (jumpAll a)
 
 
-errorPage :: (Monad m, DomBuilder t m) => Links API t m -> ServantErr -> Link t m
+errorPage :: (Monad m, DomBuilder t m) => Links (API s) t m -> ServantErr -> Link t m
 errorPage (_ :<|> _ :<|> jumpHome) err = Link $ do
   el "div" $ text $ "Something went wrong : " <> displayErr err
   b <- button "Jump home!"

@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeApplications #-}
 module Main where
@@ -17,12 +19,13 @@ import Network.Wai.Middleware.Cors (simpleCors)
 main :: IO ()
 main = do
   var <- newMVar [Item 0 "Apple" 3, Item 1 "Orange" 2, Item 2 "Banana" 9]
-  run 8080 (simpleCors (serve (Proxy @(API :<|> Raw)) ((getAllItems var :<|> getOneItem var :<|> return ()) :<|> static)))
+  run 8080 (simpleCors (serve (Proxy @(API "" :<|> Raw)) ((getAllItems var :<|> getOneItem var :<|> return ()) :<|> files)))
   where getAllItems = liftIO . readMVar
         getOneItem var iid = do
           items <- liftIO (readMVar var)
           case find (\i -> itemId i == iid) items of
             Just item -> return item
             Nothing   -> throwError err404
-        static = serveDirectory "../frontend/dist/build/frontend/frontend.jsexe"
+        files = serveDirectory staticDir
+        staticDir = "/home/kyle/repos/servant-render/example/frontend/dist/build/frontend/frontend.jsexe"
 

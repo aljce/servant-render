@@ -84,3 +84,5 @@ parseUri = Uri
 encodeUrl :: Authority -> Uri -> T.Text
 encodeUrl authority uri = LT.toStrict . LT.toLazyText $ encodeAuthority authority <> encodeUri uri
 
+parseUrl :: Parser (Authority, Uri)
+parseUrl = (,) <$> parseAuthority <*> parseUri
