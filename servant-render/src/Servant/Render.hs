@@ -18,6 +18,7 @@ module Servant.Render (
   Link(..),
   linkView,
   Env(..),
+  Scheme(..),
   Authority(..),
   Uri(..),
   Render(..),
@@ -40,7 +41,7 @@ import qualified Network.HTTP.Media as M
 import Servant.API ((:<|>)(..),(:>),Header,ReqBody,QueryParam,Capture,Verb,ReflectMethod(..),
                     MimeUnrender(..),MimeRender(..),ToHttpApiData(..),FromHttpApiData(..),
                     Accept(..))
-import Servant.Common.Uri (Authority(..),Uri(..),QueryPiece(..),unconsPathPiece,unconsQuery)
+import Servant.Common.Uri (Scheme(..),Authority(..),Uri(..),QueryPiece(..),unconsPathPiece,unconsQuery)
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
                            performOneRequest,prependPathPiece,prependHeader,
                            prependQueryParam,addBody)
@@ -180,6 +181,7 @@ instance (KnownSymbol sym, ToHttpApiData a, FromHttpApiData a, HasRender api t m
                 Right _      -> widgets rest total
                 Left failure -> Left (NotFound ("Could not parse query param because: " <> failure))
               False -> Left (NotFound ("Query piece: " <> qp <> " did not match the expected: " <> queryPath))
+            Just _  -> Left (NotFound "Query piece was a query flag")
             Nothing -> urlToShort
           links' req queryDyn =
             links (prependQueryParam (fmap (QueryPieceParam queryPath . toQueryParam) <$> queryDyn) req)
