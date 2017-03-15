@@ -29,17 +29,21 @@ import Data.Proxy (Proxy(..))
 import GHC.TypeLits (type Symbol,KnownSymbol,symbolVal)
 import Control.Monad.Fix (MonadFix)
 import Reflex.Class (Reflex(..),MonadSample(..),MonadHold(..))
-import Reflex.Dom   (DomBuilder,PostBuild,dyn,Workflow(..),workflowView)
+import Reflex.Dom   (DomBuilder,PostBuild,dyn)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
+import qualified Data.ByteString.Lazy as LB (toStrict)
 import qualified Data.ByteString.Builder as LB
 import Data.Semigroup ((<>))
+import Data.Bifunctor (first)
 import qualified Network.HTTP.Media as M
-import Servant.API ((:<|>)(..),(:>),Header,Capture,Verb,ReflectMethod(..),MimeUnrender(..),
-                    MimeRender(..),ToHttpApiData(..),FromHttpApiData(..),Accept(..))
-import Servant.Common.Uri (Authority(..),Uri(..),unconsPathPiece)
+import Servant.API ((:<|>)(..),(:>),Header,ReqBody,QueryParam,Capture,Verb,ReflectMethod(..),
+                    MimeUnrender(..),MimeRender(..),ToHttpApiData(..),FromHttpApiData(..),
+                    Accept(..))
+import Servant.Common.Uri (Authority(..),Uri(..),QueryPiece(..),unconsPathPiece,unconsQuery)
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
-                           performOneRequest,prependPathPiece,prependHeader)
+                           performOneRequest,prependPathPiece,prependHeader,
+                           prependQueryParam,addBody)
 
 data RunTime (path :: Symbol)
 
@@ -97,13 +101,13 @@ instance (ReflectMethod method, contents ~ (c:cs), MimeUnrender c a, SupportsSer
   render Proxy (Env authority onFailure failUri) cb = Render widget link
     where widget _ total = Right . Link $ do
             url <- sample (current authority)
-            res <- performOneRequest contentType url total
+            res <- performOneRequest ct url total
             (unLink . either (onFailure . AjaxFailure) cb) res
           link req e = Link $ do
             let method = T.decodeUtf8 (reflectMethod (Proxy @method))
-            reqs <- performRequestCT contentType (req { reqMethod = method }) authority e
+            reqs <- performRequestCT ct (req { reqMethod = method }) authority e
             return (fmap (either ((failUri,) . onFailure . AjaxFailure) (fmap cb)) reqs)
-          contentType = Proxy @c
+          ct = Proxy @c
 
 instance (HasRender a t m, HasRender b t m) => HasRender (a :<|> b) t m where
   type Widgets (a :<|> b) t m = Widgets a t m :<|> Widgets b t m
@@ -124,6 +128,9 @@ instance (KnownSymbol path, HasRender api t m) => HasRender (path :> api) t m wh
             Nothing -> Left (NotFound "Url too short")
           path = T.pack (symbolVal (Proxy @path))
 
+urlToShort :: Either ServantErr a
+urlToShort = Left (NotFound "Url too short")
+
 instance (ToHttpApiData a, FromHttpApiData a, HasRender api t m, SupportsServantRender t m) =>
   HasRender (Capture cap a :> api) t m where
   type Widgets (Capture cap a :> api) t m = Widgets api t m
@@ -132,9 +139,9 @@ instance (ToHttpApiData a, FromHttpApiData a, HasRender api t m, SupportsServant
     where Render widgets links = render (Proxy @api) env cb
           widgets' uri total = case unconsPathPiece uri of
             Just (piece, rest) -> case parseUrlPiece piece :: Either T.Text a of
-              Left failure -> Left (NotFound ("Could not parse url becasue: " <> failure))
               Right _      -> widgets rest total
-            Nothing -> Left (NotFound "Url too short")
+              Left failure -> Left (NotFound ("Could not parse path piece becasue: " <> failure))
+            Nothing -> urlToShort
           links' req val = links (prependPathPiece (fmap (Right . toUrlPiece) val) req)
 
 instance (KnownSymbol sym, ToHttpApiData a, HasRender api t m) =>
@@ -146,10 +153,37 @@ instance (KnownSymbol sym, ToHttpApiData a, HasRender api t m) =>
           links' req referer = links (prependHeader hname (fmap toUrlPiece <$> referer) req)
           hname = T.pack (symbolVal (Proxy @sym))
 
--- instance (KnownSymbol sym, ToHttpApiData a, HasRender api t m) =>
---   HasRender (QueryParam sym a :> api) t m where
---   type Widgets (QueryParam sym a :> api) t m = Widgets api t m
---   type Links   (QueryParam sym a :> api) t m = Dynamic t (Either T.Text a) -> 
+instance (MimeRender ct a, contents ~ (ct:cts), HasRender api t m) =>
+  HasRender (ReqBody contents a :> api) t m where
+  type Widgets (ReqBody contents a :> api) t m = Widgets api t m
+  type Links   (ReqBody contents a :> api) t m = Dynamic t (Either T.Text a) -> Links api t m
+  render Proxy env cb = Render widgets links'
+    where Render widgets links = render (Proxy @api) env cb
+          links' req bodyDyn = links (addBody (fmap makeBody bodyDyn) req)
+            where makeBody body = do
+                    a   <- body
+                    ctt <- (safeDecode . M.renderHeader . contentType) ct
+                    t   <- (safeDecode . LB.toStrict . mimeRender ct) a
+                    return (ctt,t)
+                  ct  = Proxy @ct
+                  safeDecode = first (T.pack . show) . T.decodeUtf8'
+
+instance (KnownSymbol sym, ToHttpApiData a, FromHttpApiData a, HasRender api t m) =>
+  HasRender (QueryParam sym a :> api) t m where
+  type Widgets (QueryParam sym a :> api) t m = Widgets api t m
+  type Links   (QueryParam sym a :> api) t m = Dynamic t (Either T.Text a) -> Links api t m
+  render Proxy env cb = Render widgets' links'
+    where Render widgets links = render (Proxy @api) env cb
+          widgets' uri total = case unconsQuery uri of
+            Just (QueryPieceParam qp val,rest) -> case qp == queryPath of
+              True -> case parseQueryParam val :: Either T.Text a of
+                Right _      -> widgets rest total
+                Left failure -> Left (NotFound ("Could not parse query param because: " <> failure))
+              False -> Left (NotFound ("Query piece: " <> qp <> " did not match the expected: " <> queryPath))
+            Nothing -> urlToShort
+          links' req queryDyn =
+            links (prependQueryParam (fmap (QueryPieceParam queryPath . toQueryParam) <$> queryDyn) req)
+          queryPath = T.pack (symbolVal (Proxy @sym))
 
 
 

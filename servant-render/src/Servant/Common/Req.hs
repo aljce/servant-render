@@ -15,7 +15,7 @@ import Data.Monoid ((<>))
 import qualified Data.Map.Strict as M
 import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Compose (Compose(..))
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2,(<|>))
 import Control.Concurrent.MVar (newEmptyMVar,putMVar,takeMVar)
 import Language.Javascript.JSaddle.Types (MonadJSM)
 import Control.Monad.IO.Class (MonadIO(..))
@@ -66,6 +66,9 @@ prependQueryParam q req =
 
 prependHeader :: T.Text -> Dynamic t (Either T.Text T.Text) -> Req t -> Req t
 prependHeader name referer req = req { reqHeaders = (name,referer) : reqHeaders req }
+
+addBody :: Dynamic t (Either T.Text (T.Text, T.Text)) -> Req t -> Req t
+addBody body req = req { reqBody = reqBody req <|> Just body }
 
 type SupportsServantRender t m =
   (Reflex t,MonadIO m,MonadJSM m,HasJSContext m,MonadIO (Performable m),MonadJSM (Performable m)
