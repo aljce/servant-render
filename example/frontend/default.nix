@@ -1,2 +1,2 @@
 { compiler ? "ghcjs", test ? "true" }:
-import ../../nix/local.nix { inherit compiler test; package = "frontend"; }
+import ../../nix/default.nix { inherit compiler test; package = "frontend"; }

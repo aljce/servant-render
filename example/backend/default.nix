@@ -1,2 +1,2 @@
 { compiler ? "ghc", test ? "true" }:
-import ../../nix/local.nix { inherit compiler test; package = "backend"; }
+import ../../nix/default.nix { inherit compiler test; package = "backend"; }

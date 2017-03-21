@@ -124,3 +124,8 @@ performRequestCT ct req authority = fmap (fmap parseRes) . performRequest req au
           (uri,xhr) <- res
           a <- decodeXhrRes ct xhr
           return (uri,a)
+
+performRequestCT' :: (MimeUnrender c a, SupportsServantRender t m) =>
+  Proxy c -> Req t -> Dynamic t Authority -> Event t () -> m (Event t (Either T.Text a))
+performRequestCT' ct req authority = fmap (fmap parseRes) . performRequest req authority
+  where parseRes res = res >>= decodeXhrRes ct . snd

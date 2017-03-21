@@ -21,6 +21,7 @@ module Servant.Render (
   Scheme(..),
   Authority(..),
   Uri(..),
+  Reflexive(..),
   Render(..),
   HasRender(..),
   SupportsServantRender )where
@@ -43,8 +44,8 @@ import Servant.API ((:<|>)(..),(:>),Header,ReqBody,QueryParam,Capture,Verb,Refle
                     Accept(..))
 import Servant.Common.Uri (Scheme(..),Authority(..),Uri(..),QueryPiece(..),unconsPathPiece,unconsQuery)
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
-                           performOneRequest,prependPathPiece,prependHeader,
-                           prependQueryParam,addBody)
+                           performRequestCT',performOneRequest,prependPathPiece,
+                           prependHeader,prependQueryParam,addBody)
 
 data RunTime (path :: Symbol)
 
@@ -69,6 +70,8 @@ instance KnownSymbol path => MimeRender (RunTime path) a where
             , "\""
             , attr
             , "></script>" ]
+
+newtype Reflexive a = Reflexive a deriving (Read,Show,Eq,Ord)
 
 data ServantErr = NotFound T.Text | AjaxFailure T.Text
 
@@ -109,6 +112,15 @@ instance (ReflectMethod method, contents ~ (c:cs), MimeUnrender c a, SupportsSer
             reqs <- performRequestCT ct (req { reqMethod = method }) authority e
             return (fmap (either ((failUri,) . onFailure . AjaxFailure) (fmap cb)) reqs)
           ct = Proxy @c
+
+instance (ReflectMethod method, contents ~ (c:cs), MimeUnrender c a, SupportsServantRender t m) =>
+  HasRender (Reflexive (Verb method status contents a)) t m where
+  type Widgets (Reflexive (Verb method status contents a)) t m = ()
+  type Links   (Reflexive (Verb method status contents a)) t m =
+    Event t () -> m (Event t (Either T.Text a))
+  render Proxy (Env authority _ _) _ = Render widget links
+    where widget _ _ = Left (NotFound "Not a valid request")
+          links req = performRequestCT' (Proxy @c) req authority
 
 instance (HasRender a t m, HasRender b t m) => HasRender (a :<|> b) t m where
   type Widgets (a :<|> b) t m = Widgets a t m :<|> Widgets b t m
