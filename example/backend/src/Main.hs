@@ -22,7 +22,7 @@ main = do
   curDir <- getCurrentDirectory
   www <- canonicalizePath (curDir ++ "/../frontend/result/bin/frontend.jsexe")
   var <- newMVar [Item 0 "Apple" 3, Item 1 "Orange" 2, Item 2 "Banana" 9]
-  run 8080 (simpleCors (serve (Proxy @(API "" :<|> Raw)) (routes var :<|> serveDirectory www)))
+  run 8080 (simpleCors (serve (Proxy @(API :<|> Raw)) (routes var :<|> serveDirectory www)))
   where routes var = getAllItems var :<|> getOneItem var :<|> getLen var :<|> return ()
         getAllItems = liftIO . readMVar
         getOneItem var iid = do

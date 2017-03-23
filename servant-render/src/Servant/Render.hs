@@ -13,7 +13,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Servant.Render (
-  RunTime,
   ServantErr(..),
   Link(..),
   linkView,
@@ -34,11 +33,11 @@ import Reflex.Class (Reflex(..),MonadSample(..),MonadHold(..))
 import Reflex.Dom   (DomBuilder,PostBuild,dyn)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import qualified Data.ByteString.Lazy as LB (toStrict)
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString.Builder as LB
 import Data.Semigroup ((<>))
 import Data.Bifunctor (first)
-import qualified Network.HTTP.Media as M
+import Network.HTTP.Media (renderHeader)
 import Servant.API ((:<|>)(..),(:>),Header,ReqBody,QueryParam,Capture,Verb,ReflectMethod(..),
                     MimeUnrender(..),MimeRender(..),ToHttpApiData(..),FromHttpApiData(..),
                     Accept(..))
@@ -46,30 +45,6 @@ import Servant.Common.Uri (Scheme(..),Authority(..),Uri(..),QueryPiece(..),uncon
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
                            performRequestCT',performOneRequest,prependPathPiece,
                            prependHeader,prependQueryParam,addBody)
-
-data RunTime (path :: Symbol)
-
-instance Accept (RunTime path) where
-  contentType _ = "text" M.// "html" M./: ("charset", "utf-8")
-
-instance KnownSymbol path => MimeRender (RunTime path) a where
-  mimeRender _ _ = LB.toLazyByteString $ mconcat
-    [ "<!DOCTYPE html>"
-    , "<html><head>"
-    , script "/rts.js" ""
-    , script "/lib.js" ""
-    , script "/out.js" ""
-    , "</head><body></body>"
-    , script "/runmain.js" " defer"
-    , "</html>" ]
-    where script :: LB.Builder -> LB.Builder -> LB.Builder
-          script s attr = mconcat
-            [ "<script language=\"javascript\" src=\""
-            , LB.stringUtf8 (symbolVal (Proxy @path))
-            , s
-            , "\""
-            , attr
-            , "></script>" ]
 
 newtype Reflexive a = Reflexive a deriving (Read,Show,Eq,Ord)
 
@@ -175,7 +150,7 @@ instance (MimeRender ct a, contents ~ (ct:cts), HasRender api t m) =>
           links' req bodyDyn = links (addBody (fmap makeBody bodyDyn) req)
             where makeBody body = do
                     a   <- body
-                    ctt <- (safeDecode . M.renderHeader . contentType) ct
+                    ctt <- (safeDecode . renderHeader . contentType) ct
                     t   <- (safeDecode . LB.toStrict . mimeRender ct) a
                     return (ctt,t)
                   ct  = Proxy @ct
