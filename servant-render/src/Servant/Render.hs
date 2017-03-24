@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,9 +12,8 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 module Servant.Render (
+  module Link,
   ServantErr(..),
-  Link(..),
-  linkView,
   Env(..),
   Scheme(..),
   Authority(..),
@@ -27,8 +25,7 @@ module Servant.Render (
 
 import Data.Kind (type Type)
 import Data.Proxy (Proxy(..))
-import GHC.TypeLits (type Symbol,KnownSymbol,symbolVal)
-import Control.Monad.Fix (MonadFix)
+import GHC.TypeLits (KnownSymbol,symbolVal)
 import Reflex.Class (Reflex(..),MonadSample(..),MonadHold(..))
 import Reflex.Dom   (DomBuilder,PostBuild,dyn)
 import qualified Data.Text as T
@@ -45,18 +42,12 @@ import Servant.Common.Uri (Scheme(..),Authority(..),Uri(..),QueryPiece(..),uncon
 import Servant.Common.Req (Req(..),SupportsServantRender,performRequestCT,
                            performRequestCT',performOneRequest,prependPathPiece,
                            prependHeader,prependQueryParam,addBody)
+import Reflex.Link as Link
+
 
 newtype Reflexive a = Reflexive a deriving (Read,Show,Eq,Ord)
 
 data ServantErr = NotFound T.Text | AjaxFailure T.Text
-
-newtype Link t m = Link { unLink :: m (Event t (Uri, Link t m)) }
-
-linkView :: (MonadFix m, DomBuilder t m, PostBuild t m, MonadHold t m) => Link t m -> m (Event t Uri)
-linkView l = do
-  rec eResult  <- dyn . fmap unLink =<< holdDyn l (fmap snd eReplace)
-      eReplace <- fmap switch (hold never eResult)
-  return (fmap fst eReplace)
 
 data Env t m = Env
   { envAuthority :: Dynamic t Authority
