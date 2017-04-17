@@ -4,4 +4,5 @@ cd frontend
 nix-build --option extra-binary-caches https://nixcache.reflex-frp.org --argstr compiler ghcjs
 cd ../backend
 nix-build --option extra-binary-caches https://nixcache.reflex-frp.org
+echo "starting server..."
 ./result/bin/backend

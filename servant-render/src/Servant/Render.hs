@@ -86,7 +86,8 @@ instance (ReflectMethod method, contents ~ (c:cs), MimeUnrender c a, SupportsSer
     Event t () -> m (Event t (Either T.Text a))
   render Proxy (Env authority _ _) _ = Render widget links
     where widget _ _ = Left (NotFound "Not a valid request")
-          links req = performRequestCT' (Proxy @c) req authority
+          links req = performRequestCT' (Proxy @c) (req { reqMethod = method }) authority
+          method = T.decodeUtf8 (reflectMethod (Proxy @method))
 
 instance (HasRender a t m, HasRender b t m) => HasRender (a :<|> b) t m where
   type Widgets (a :<|> b) t m = Widgets a t m :<|> Widgets b t m
