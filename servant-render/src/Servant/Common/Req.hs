@@ -13,6 +13,7 @@ import qualified Data.Text.Lazy as LT (toStrict)
 import qualified Data.Text.Lazy.Builder as LT
 import Data.Monoid ((<>))
 import qualified Data.Map.Strict as M
+import Data.Bool (bool)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Compose (Compose(..))
 import Control.Applicative (liftA2,(<|>))
@@ -94,10 +95,10 @@ performRequest req authority trigger =
           return $ do
             headers     <- headersE
             (user,pass) <- authInfoE
-            (body,mct)  <- bodyE
+            (ct,body)   <- bodyE
             let m = M.fromList headers
-                headers' = maybe m (\ct -> M.insert "Content-Type" ct m) mct
-            return (XhrRequestConfig headers' user pass Nothing body False def)
+                headers' = bool (M.insert "Content-Type" ct m) m (T.null ct)
+            return (XhrRequestConfig headers' user pass Nothing (maybe "" id body) False def)
         headersD :: Dynamic t (Either T.Text [(T.Text, T.Text)])
         headersD = (fmap sequence . traverse tup . reqHeaders) req
           where tup (headerName,d) = fmap (fmap (\v -> (headerName,v))) d
